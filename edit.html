@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>ACE in Action</title>
+<style type="text/css" media="screen">
+	#editor { 
+		position: absolute;
+		top: 30pt;
+		right: 0;
+		bottom: 0;
+		left: 0;
+	}
+</style>
+</head>
+<body>
+
+<input id="inputFile" type="file"></input>
+
+<div id="editor"></div>
+	
+<script src="http://rawgithub.com/ajaxorg/ace-builds/master/src-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+<script>
+	window.my = {}
+	my.edit_url = window.location.hash.substr(1) || document.documentURI;
+	my.editor;
+
+	function P(x) {
+		console.log(x);
+		return x;
+	}
+
+	function save(url) {
+		localStorage.setItem(url, my.editor.getValue());
+	}
+
+	function loadFromXhr(url, cb) {
+		var req = new XMLHttpRequest();
+		req.onload = function() {
+			my.editor.setValue(this.responseText);
+			if (cb) cb();
+		}
+		req.open("get", url, true);
+		req.send();
+	}
+
+	function load(url, cb) {
+		var text = localStorage.getItem(url);
+		if (text !== null) {
+			my.editor.setValue(localStorage.getItem(url));
+			if (cb) cb();
+		} else {
+			loadFromXhr(url, cb);
+		}
+	}
+
+	function initAce() {	
+		my.editor = ace.edit("editor");
+		my.editor.setTheme("ace/theme/monokai");
+		my.editor.getSession().setMode("ace/mode/html");
+		my.editor.getSession().on("change", function(e) {
+			save(my.edit_url);
+		});
+		my.editor.commands.addCommand({
+			name: 'reimport',
+			bindKey: {win: 'Ctrl-.'},
+			exec: function(editor) {
+				var cursor = editor.getCursorPosition();
+				loadFromXhr(my.edit_url, function() {
+					editor.moveCursorToPosition(cursor);
+					editor.clearSelection();
+				});
+			}
+		});
+		my.editor.commands.addCommand({
+			name: 'load content',
+			bindKey: {win: 'Ctrl-,'},
+			exec: function(editor) {
+				document.write(editor.getValue());
+			}
+		});
+	}
+	
+	function initMenu() {
+		var $inputFile = document.getElementById("inputFile");
+		$inputFile.addEventListener("change", function() {
+			var file = this.files[0];
+			var name = file.name;
+			var reader = new FileReader();
+			reader.onload = function(e) {
+				my.edit_url = name;
+				document.title = name;
+				my.editor.setValue(e.target.result);
+				my.editor.gotoLine(0);
+			}
+			reader.readAsText(file);
+		});
+	}
+	
+	initAce();
+	initMenu();
+	load(my.edit_url);
+	document.title = my.edit_url;
+	my.editor.gotoLine(0);
+</script>
+</body>
+</html>
+
